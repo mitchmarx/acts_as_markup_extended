@@ -12,11 +12,12 @@ module ActsAsMarkup
   # This exception is raised when an unsupported markup language is supplied to acts_as_markup.
   class UnsupportedMarkupLanguage < ArgumentError
   end
-  
   # This exception is raised when an unsupported Markdown library is set to the config value.
   class UnsportedMarkdownLibrary < ArgumentError
   end
-  
+  # this extension is raised when an extension method doesn't exist
+  class UnknownExtensionMethod < ArgumentError
+  end
   DEFAULT_MARKDOWN_LIB = :rdiscount
   
   MARKDOWN_LIBS = { :rdiscount => {:class_name => "RDiscount",
@@ -74,4 +75,5 @@ end  # module ActsAsMarkup
 
 require 'acts_as_markup/exts/object'
 require 'acts_as_markup/stringlike'
+require 'markup_extensions'
 ActsAsMarkup.require_all_libs_relative_to __FILE__, 'acts'

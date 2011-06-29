@@ -6,7 +6,7 @@ module ActiveRecord # :nodoc:
       def self.included(base) # :nodoc:
         base.extend(ClassMethods)
       end
-      
+
       module ClassMethods
         
         # This allows you to specify columns you want to define as containing 
@@ -28,7 +28,15 @@ module ActiveRecord # :nodoc:
         # <tt>:variable</tt>. See each library's documentation for more details on what
         # options are available.
         # 
-        # 
+        # For any column you can specify markup extensions by including 
+        # <tt>:extensions =></tt> in any of the forms of acts_as_markup illustrated below.
+        #
+        # Sample extensions methods are in: lib/markup_extensions.
+        # You can include methods that reside anywhere as long as they are 
+        # in module MarkupExtensionMethods. (see the samples in lib/markup_methods).
+        #
+        # You can invoke all the methods in module MarkupExtensionMethods with :extensions => :all.
+        #
         # ==== Examples
         # 
         # ===== Using Markdown language
@@ -68,7 +76,17 @@ module ActiveRecord # :nodoc:
         #       acts_as_markup :language => :wikitext, :columns => [:body], :wikitext_options => [ { :space_to_underscore => true } ]
         #     end
         #     
-        # 
+        # ===== With markup extension methods
+        #
+        #     class Post < ActiveRecord
+        #       acts_as_markup :language => :markdown, :columns => [:body],
+        #             :extensions => [:method1, method2, ...].
+        #     end
+        #
+        #     class Post < ActiveRecord
+        #       acts_as_markdown :body, :extensions => :all
+        #     end        
+          
         def acts_as_markup(options)
           case options[:language].to_sym
           when :markdown, :textile, :wikitext, :rdoc
@@ -83,6 +101,8 @@ module ActiveRecord # :nodoc:
             raise ActsAsMarkup::UnsupportedMarkupLanguage, "#{options[:langauge]} is not a currently supported markup language."
           end
           
+          # create the proc object in current scope
+          set_markup_object = markup_object_proc
           unless options[:language].to_sym == :variable
             markup_options = options["#{options[:language]}_options".to_sym] || []
             options[:columns].each do |col|
@@ -92,7 +112,9 @@ module ActiveRecord # :nodoc:
                     return instance_variable_get("@#{col}")
                   end
                 end
-                instance_variable_set("@#{col}", klass.new(self[col].to_s, *markup_options))
+                # call the proc to make all 'to_html' methods return an MString instead of a String
+                set_markup_object.call("@#{col}",options,          
+                  klass.new(self[col].to_s, *markup_options))
               end
             end
           else
@@ -102,8 +124,9 @@ module ActiveRecord # :nodoc:
                   unless send("#{col}_changed?") || send("#{options[:language_column]}_changed?")
                     return instance_variable_get("@#{col}")
                   end
-                end
-                instance_variable_set("@#{col}", case send(options[:language_column])
+                end 
+                # call the proc to make all 'to_html' methods return an MString instead of a String
+                set_markup_object.call("@#{col}",options, case send(options[:language_column])
                 when /markdown/i
                   markup_klasses[:markdown].new self[col].to_s, *(options[:markdown_options] || [])
                 when /textile/i
@@ -195,7 +218,31 @@ module ActiveRecord # :nodoc:
               return String
             end
           end
-        
+          
+          # This method returns a Proc object that is called
+          # when acts_as_markup intercepts ActiveRecord
+          # while it is creating a column instance.
+          # The Proc creates an Eigenclass for the markup
+          # object. The eigenclass overrides the <tt>to_html</tt> method
+          # in the markup object (Rdiscount, Textile, etc.) so
+          # that it returns an instance of MString instead of String
+          # MString includes all the markup extension methods and invokes
+          # the ones named in <tt>:extensions =></tt>.
+          #
+          def markup_object_proc
+            Proc.new {|col, options, markup_object |  
+              if options[:extensions]
+                singleton = markup_object.singleton_class
+                singleton.send(:alias_method,:old_to_html, :to_html)
+                singleton.send(:define_method, :to_html)  {
+                 MarkupExtensions::MString.new(old_to_html).
+                  run_methods(options[:extensions])
+                }
+              end
+              instance_variable_set(col, markup_object)           
+            }
+          end
+          
       end
     end
   end

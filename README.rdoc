@@ -1,13 +1,20 @@
-= Acts as Markup
+= Acts as Markup Extended 
 
-by Brian Landau of Viget Labs <brian.landau@viget.com>
+* by Mitch Marx <mitch.marx@mdpaladin.com> 
+* based on acts_as_markup by Brian Landau of Viget Labs <brian.landau@viget.com>  
 
-GitHub Project: http://github.com/vigetlabs/acts_as_markup
+GitHub Project: http://github.com/mitchmarx/acts_as_markup_extended
 
 RDoc: 
 * http://gitrdoc.com/vigetlabs/acts_as_markup/tree/master
 * http://vigetlabs.github.com/acts_as_markup
 
+
+== NOTE:
+
+This is an enhanced version of Brian Landau's acts_as_markup.  It includes the
+":extensions =>" option which allows you to specify methods that extend markup 
+languages (see the samples in lib/markup_methods).
 
 == DESCRIPTION:
 
@@ -21,7 +28,7 @@ is listed as "markdown" "textile", "wikitext" or "rdoc" (case insensitive) it wi
 treat it as such, any other value for markup language will have the value pass 
 through as a normal string.
 
-This AR extension can use 3 different types of Markdown processing backends: 
+You can use 4 different types of Markdown processing backends: 
 BlueCloth, RDiscount, Ruby PEG or Maruku. You specify which one you want to use by setting
 a config value in your environment.rb file:
 
@@ -35,6 +42,17 @@ RDoc does not support any useful options. The options should be given as an
 array of arguments. You can specify options for multiple languages when
 allowing more than one. See each library's documentation for more details on
 what options are available.
+
+== MARKUP EXTENSION METHODS:
+
+For any column you can specify markup extension methods by including 
+<tt>:extensions =></tt> in any of the forms of acts_as_markup illustrated below.
+
+Sample extensions methods are in: <tt>lib/markup_extensions</tt>.
+You can include methods that reside anywhere as long as they are 
+in module MarkupExtensionMethods.
+
+You can invoke all the methods in module MarkupExtensionMethods with <tt>:extensions => :all</tt>.
 
 == EXAMPLES:
 
@@ -119,6 +137,17 @@ what options are available.
       acts_as_wikitext :body, :wikitext_options => [ { :space_to_underscore => true } ]
     end
     
+==== With markup extension methods
+
+    class Post < ActiveRecord
+      acts_as_markup :language => :markdown, :columns => [:body],
+         :extensions => [:method1, method2, ...].
+    end
+
+    class Post < ActiveRecord
+      acts_as_markdown :body, :extensions => :all
+    end        
+  
 
 == REQUIREMENTS:
 
